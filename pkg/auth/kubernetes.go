@@ -3,6 +3,7 @@ package auth
 import (
 	"flag"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
@@ -10,26 +11,48 @@ import (
 	"path/filepath"
 )
 
+type kubernetesConfig struct {
+	Config rest.Config
+}
+
 type KubernetesAccess struct {
 	Config rest.Config
 	ClientSet kubernetes.Clientset
 }
 
-func GetKubernetesAccess() (*KubernetesAccess, error) {
-	kubeconfig, err := inClusterAuth()
+var configInstance *kubernetesConfig
 
-	if kubeconfig == nil {
-		kubeconfig, err = outOfClusterAuth()
+func getConfigInstance() (*kubernetesConfig) {
+	if configInstance == nil {
+		kubeconfig, err := inClusterAuth()
+
+		if kubeconfig == nil {
+			kubeconfig, err = outOfClusterAuth()
+		}
+		if err != nil {
+			panic(err.Error())
+		}
+		return &kubernetesConfig{ Config: *kubeconfig }
 	}
-	if err != nil {
-		panic(err.Error())
-	}
-	clientset, err := kubernetes.NewForConfig(kubeconfig)
+	return configInstance
+}
+
+func GetKubernetesConfig() (rest.Config, error) {
+	return getConfigInstance().Config, nil
+}
+
+func GetKubernetesAccess() (*KubernetesAccess, error) {
+	kubeconfig := getConfigInstance().Config
+	kubeconfig.APIPath = "/apis"
+	kubeconfig.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
+	kubeconfig.UserAgent = rest.DefaultKubernetesUserAgent()
+
+	clientset, err := kubernetes.NewForConfig(&kubeconfig)
 	if err != nil {
 		panic(err.Error())
 	}
 	return &KubernetesAccess{
-		Config: *kubeconfig,
+		Config: kubeconfig,
 		ClientSet: *clientset,
 	}, nil
 }
