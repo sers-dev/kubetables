@@ -1,0 +1,11 @@
+apiVersion: "k8s.sers.dev/v1alpha1"
+kind: "Ktban"
+metadata:
+  name: "example-ban"
+  namespace: "ktban"
+spec:
+    ip: "10.0.2.20"
+    portRange: "22-22"
+    interfaceGroup: "public"
+    protocol: "TCP"
+    direction: "in"
