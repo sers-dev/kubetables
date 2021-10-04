@@ -3,6 +3,7 @@ module github.com/sers-dev/kubetables
 go 1.16
 
 require (
+	github.com/coreos/go-iptables v0.6.0 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect

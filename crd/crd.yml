@@ -20,17 +20,21 @@ spec:
           type: "object"
           properties:
             spec:
-              required: [ "ip", "portRange", "protocol", "direction" ] #add interfaceGroup?
+              required: [ "ip", "portFrom", "portTo", "protocol", "direction" ] #add interfaceGroup?
               type: "object"
               properties:
                 ip:
                   type: "string"
-                portRange:
-                  type: "string"
-                  pattern: "[0-9]{0,5}-[0-9]{0,5}"
-                interfaceGroup:
-                  type: "string"
-                  maximum: 20
+                portFrom:
+                  type: "integer"
+                portTo:
+                  type: "integer"
+                #portRange:
+                #  type: "string"
+                #  pattern: "^([0-9]){0,5}|([:,][0-9]{0,5})+"
+                #interfaceGroup:
+                #  type: "string"
+                #  maximum: 20
                 protocol:
                   type: "string"
                 direction:
@@ -41,14 +45,18 @@ spec:
           type: "string"
           description: ""
           jsonPath: ".spec.ip"
-        - name: "Portrange"
-          type: "string"
-          description: "Specifies which portrange will be blocked"
-          jsonPath: ".spec.portRange"
-        - name: "InterfaceGroup"
-          type: "string"
-          description: "Specifies which interface group (as interface abstraction) will get the ban"
-          jsonPath: ".spec.interfaceGroup"
+        - name: "Pfrom"
+          type: "integer"
+          description: "Specifies starting range of ports which will be blocked"
+          jsonPath: ".spec.portFrom"
+        - name: "PTo"
+          type: "integer"
+          description: "Specifies ending range of ports which will be blocked"
+          jsonPath: ".spec.portTo"
+        #- name: "InterfaceGroup"
+        #  type: "string"
+        #  description: "Specifies which interface group (as interface abstraction) will get the ban"
+        #  jsonPath: ".spec.interfaceGroup"
         - name: "Protocol"
           type: "integer"
           description: "Which (transport-) protocol will be blocked"

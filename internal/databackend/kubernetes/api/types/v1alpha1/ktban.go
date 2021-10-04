@@ -4,8 +4,9 @@ import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 type KtbanSpec struct {
 	Ip string `json:"ip"`
-	PortRange string `json:"portRange"`
-	InterfaceGroup string `json:"interfaceGroup"`
+	PortFrom int `json:"portFrom"`
+	PortTo int `json:"portTo"`
+	//InterfaceGroup string `json:"interfaceGroup"`
 	Protocol string `json:"protocol"`
 	Direction string `json:"direction"`
 }

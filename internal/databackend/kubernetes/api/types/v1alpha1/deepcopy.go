@@ -7,8 +7,9 @@ func (in *Ktban) DeepCopyInto(out *Ktban) {
 	out.ObjectMeta = in.ObjectMeta
 	out.Spec = KtbanSpec{
 		Ip: in.Spec.Ip,
-		PortRange: in.Spec.PortRange,
-		InterfaceGroup: in.Spec.InterfaceGroup,
+		PortFrom: in.Spec.PortFrom,
+		PortTo: in.Spec.PortTo,
+		//InterfaceGroup: in.Spec.InterfaceGroup,
 		Protocol: in.Spec.Protocol,
 		Direction: in.Spec.Direction,
 	}

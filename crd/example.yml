@@ -5,7 +5,8 @@ metadata:
   namespace: "ktban"
 spec:
     ip: "10.0.2.20"
-    portRange: "22-22"
-    interfaceGroup: "public"
+    portFrom: 1
+    portTo: 80
+    #interfaceGroup: "public"
     protocol: "TCP"
     direction: "in"

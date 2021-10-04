@@ -2,7 +2,7 @@ package v1alpha1
 
 import (
 	"context"
-	"github.com/sers-dev/kubetables/internal/kubernetesapi/types/v1alpha1"
+	v1alpha1 "github.com/sers-dev/kubetables/internal/databackend/kubernetes/api/types/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/scheme"
