@@ -4,7 +4,6 @@ import (
     "fmt"
     "github.com/sers-dev/kubetables/internal/databackend/kubernetes"
     "github.com/sers-dev/kubetables/internal/packetfilter"
-    "github.com/sers-dev/kubetables/internal/packetfilter/iptables"
 )
 
 //https://www.martin-helmich.de/en/blog/kubernetes-crd-client.html
@@ -21,18 +20,21 @@ func main() {
     }
     fmt.Println("IPT INITIALIZE")
     packetFilter := packetfilter.CreatePacketFilter()
-    iptHandler, err := iptables.Initialize()
+    err = packetFilter.CreateInitialRules(ktbans)
+    if err != nil {
+        //LOG ERROR
+    }
+
     if err != nil {
         panic(err.Error())
     }
-
     if ktbans.Items != nil {
         for i := range ktbans.Items {
             fmt.Println("IP:", ktbans.Items[i].Ip)
             ruleExists, _ := packetFilter.RuleExists(ktbans.Items[i])
             println("RULE EXISTS?", ruleExists)
             if !ruleExists {
-                _, err := iptHandler.AppendRule(ktbans.Items[i])
+                err := packetFilter.AppendRule(ktbans.Items[i])
                 if err != nil {
                     panic(err.Error())
                 }

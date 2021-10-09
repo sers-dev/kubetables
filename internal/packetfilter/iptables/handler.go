@@ -20,7 +20,7 @@ type IptCommand struct {
 	RuleSpec []string
 }
 
-var chainName = "kubetables"
+var chainName = "KUBETABLES"
 var tableName = "filter"
 
 
@@ -36,10 +36,51 @@ func Initialize() (*Handler, error) {
 		panic(err.Error())
 	}
 
-	createChainIfNotExists(h.ip4Tables)
-	createChainIfNotExists(h.ip6Tables)
+	h.createChainIfNotExists(h.ip4Tables, chainName)
+	h.createChainIfNotExists(h.ip6Tables, chainName)
 
 	return &h,nil
+}
+
+func (h *Handler) CreateInitialRules (ktbans types.Ktbans) (error) {
+	var tmpChainName = "KUBETABLES-TMP"
+	var errorSlice []string
+
+	h.createChainIfNotExists(h.ip4Tables, tmpChainName)
+	h.createChainIfNotExists(h.ip6Tables, tmpChainName)
+	for i, ktban := range ktbans.Items {
+		command, err := h.buildCommand(ktbans.Items[i])
+		if err != nil {
+			errorSlice = append(errorSlice, err.Error())
+			continue
+		}
+		if h.isIpv4(&ktban.Ip) {
+			err := h.ip4Tables.AppendUnique(command.Table, tmpChainName, command.RuleSpec...)
+			if err != nil {
+				panic(err.Error())
+			}
+		} else {
+			err := h.ip6Tables.AppendUnique(command.Table, tmpChainName, command.RuleSpec...)
+			if err != nil {
+				panic(err.Error())
+			}
+		}
+	}
+
+	h.deleteChain(h.ip4Tables, chainName)
+	h.deleteChain(h.ip6Tables, chainName)
+	err := h.ip4Tables.RenameChain(tableName, tmpChainName, chainName)
+	if err != nil {
+		panic(err.Error())
+	}
+	err = h.ip6Tables.RenameChain(tableName, tmpChainName, chainName)
+	if err != nil {
+		panic(err.Error())
+	}
+	if len(errorSlice) > 0 {
+		return errors.New(strings.Join(errorSlice, "\n"))
+	}
+	return nil
 }
 
 func (h *Handler) RuleExists(ktban types.Ktban) (bool, error) {
@@ -48,76 +89,76 @@ func (h *Handler) RuleExists(ktban types.Ktban) (bool, error) {
 		panic(err.Error())
 	}
 	var ruleExists bool
-	if isIpv4(&ktban.Ip) {
+	if h.isIpv4(&ktban.Ip) {
 		ruleExists, err = h.ip4Tables.Exists(tableName, chainName, iptc.RuleSpec...)
 	} else {
 		ruleExists, err = h.ip6Tables.Exists(tableName, chainName, iptc.RuleSpec...)
 	}
 	if err != nil {
-		panic(err.Error())
+		return false, err
 	}
 	return ruleExists, nil
 }
 
-func (h *Handler) AppendRule (ktban types.Ktban) (bool, error) {
+func (h *Handler) AppendRule (ktban types.Ktban) ( error) {
 	command, err := h.buildCommand(ktban)
 	if err != nil {
-		panic(err.Error())
+		return err
 	}
-	if isIpv4(&ktban.Ip) {
-		err := h.ip4Tables.Append(command.Table, command.Chain, command.RuleSpec...)
+	if h.isIpv4(&ktban.Ip) {
+		err := h.ip4Tables.AppendUnique(command.Table, command.Chain, command.RuleSpec...)
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 	} else {
-		err := h.ip6Tables.Append(command.Table, command.Chain, command.RuleSpec...)
+		err := h.ip6Tables.AppendUnique(command.Table, command.Chain, command.RuleSpec...)
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 	}
-	return true, nil
+	return nil
 }
 
 //InsertRule TO DO: .INSERT PARAM POS 1 ?
-func (h *Handler) InsertRule (ktban types.Ktban) (bool, error) {
+func (h *Handler) InsertRule (ktban types.Ktban) (error) {
 	command, err := h.buildCommand(ktban)
 	if err != nil {
-		panic(err.Error())
+		return err
 	}
-	if isIpv4(&ktban.Ip) {
+	if h.isIpv4(&ktban.Ip) {
 		err := h.ip4Tables.Insert(command.Table, command.Chain, 1, command.RuleSpec...)
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 	} else {
 		err := h.ip6Tables.Insert(command.Table, command.Chain, 1, command.RuleSpec...)
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 	}
-	return true, nil
+	return nil
 }
 
-func (h *Handler) DeleteRule (ktban types.Ktban) (bool, error) {
+func (h *Handler) DeleteRule (ktban types.Ktban) (error) {
 	command, err := h.buildCommand(ktban)
 	if err != nil {
-		panic(err.Error())
+		return err
 	}
-	if isIpv4(&ktban.Ip) {
+	if h.isIpv4(&ktban.Ip) {
 		err := h.ip4Tables.Delete(command.Table, command.Chain, command.RuleSpec...)
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 	} else {
 		err := h.ip6Tables.Delete(command.Table, command.Chain, command.RuleSpec...)
 		if err != nil {
-			panic(err.Error())
+			return err
 		}
 	}
-	return true, nil
+	return nil
 }
 
-func createChainIfNotExists (iptablesVx *iptables.IPTables) {
+func (h *Handler) createChainIfNotExists (iptablesVx *iptables.IPTables, chainName string) {
 	chainExists, err := iptablesVx.ChainExists(tableName, chainName)
 	if err != nil {
 		panic(err.Error())
@@ -130,7 +171,20 @@ func createChainIfNotExists (iptablesVx *iptables.IPTables) {
 	}
 }
 
-func isIpv4(ip *string) bool {
+func (h *Handler) deleteChain (iptablesVx *iptables.IPTables, chainName string) {
+	chainExists, err := iptablesVx.ChainExists(tableName, chainName)
+	if err != nil {
+		panic(err.Error())
+	}
+	if chainExists {
+		err := iptablesVx.ClearAndDeleteChain(tableName, chainName)
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+}
+
+func (h *Handler) isIpv4(ip *string) bool {
 	parsedIp := net.ParseIP(*ip)
 	if parsedIp.To4() != nil {
 		return true
