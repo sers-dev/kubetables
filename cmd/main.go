@@ -3,44 +3,50 @@ package main
 import (
     "fmt"
     "github.com/sers-dev/kubetables/internal/databackend/kubernetes"
+    "github.com/sers-dev/kubetables/internal/databackend/kubernetes/api/types/v1alpha1"
     "github.com/sers-dev/kubetables/internal/packetfilter"
+    "k8s.io/apimachinery/pkg/watch"
 )
 
 //https://www.martin-helmich.de/en/blog/kubernetes-crd-client.html
 func main() {
-    fmt.Println("INITIALIZE KUBERNETES")
     kubeHandler, err := kubernetes.Initialize()
     if err != nil {
         panic(err.Error())
     }
-    fmt.Println("KUBERNETES LIST")
+
+    packetFilter := packetfilter.CreatePacketFilter()
     ktbans, err := kubeHandler.List()
     if err != nil {
         panic(err.Error())
     }
-    fmt.Println("IPT INITIALIZE")
-    packetFilter := packetfilter.CreatePacketFilter()
+
     err = packetFilter.CreateInitialRules(ktbans)
     if err != nil {
         //LOG ERROR
     }
 
-    if err != nil {
-        panic(err.Error())
-    }
-    if ktbans.Items != nil {
-        for i := range ktbans.Items {
-            fmt.Println("IP:", ktbans.Items[i].Ip)
-            ruleExists, _ := packetFilter.RuleExists(ktbans.Items[i])
-            println("RULE EXISTS?", ruleExists)
-            if !ruleExists {
-                err := packetFilter.AppendRule(ktbans.Items[i])
-                if err != nil {
-                    panic(err.Error())
-                }
-            }
+    watcher := kubeHandler.Watch()
+    for event := range watcher.ResultChan() {
+        ktban := event.Object.(*v1alpha1.Ktban)
 
-            fmt.Println("DIRECTION:", ktbans.Items[i].Direction)
+        ktbanType := kubeHandler.ConvertKtbanType(*ktban)
+        switch event.Type {
+        case watch.Added:
+            fmt.Println("ADDED KTBAN")
+            err := packetFilter.AppendRule(ktbanType)
+            if err != nil {
+                panic(err.Error())
+            }
+        case watch.Modified:
+            fmt.Println("MODIFIED KTBAN")
+        case watch.Deleted:
+            fmt.Println("DELETED KTBAN")
+
+            err := packetFilter.DeleteRule(ktbanType)
+            if err != nil {
+                panic(err.Error())
+            }
         }
     }
 }

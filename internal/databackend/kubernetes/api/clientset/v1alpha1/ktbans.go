@@ -46,9 +46,47 @@ func (c *ktbanClient) Get(name string, opts metav1.GetOptions) (*v1alpha1.Ktban,
 
 func (c *ktbanClient) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	opts.Watch = true
+
 	return c.restClient.Get().
 		Namespace(c.ns).
 		Resource("ktbans").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Watch(context.TODO())
 }
+
+//func (c *ktbanClient) StartWatch(addFunc kubernetes.AddResource, updateFunc kubernetes.UpdateResource, deleteFunc kubernetes.DeleteResource) {
+//	access, err := auth.GetKubernetesAccess()
+//	if err != nil {
+//		panic(err.Error())
+//	}
+//	optionsModifierFunc := func(options *metav1.ListOptions) {}
+//
+//	watchlist := cache.NewFilteredListWatchFromClient(
+//		access.ClientSet.CoreV1().RESTClient(),
+//		"ktbans",
+//		c.ns,
+//		optionsModifierFunc)
+//
+//	_, controller := cache.NewInformer(
+//		watchlist,
+//		&v1alpha1.Ktban{},
+//		1*time.Minute,
+//		cache.ResourceEventHandlerFuncs{
+//			AddFunc: func(obj interface{}) {
+//				ktban := obj.(*v1alpha1.Ktban)
+//				kubernetes.AddKtban(ktban)
+//			},
+//			UpdateFunc: func(oldObj, newObj interface{}) {
+//
+//			},
+//			DeleteFunc: func(oldObj interface{}){
+//
+//			},
+//		},
+//		)
+//	go controller.Run(make(chan struct{}))
+//	for {
+//		time.Sleep(time.Second)
+//	}
+//}
+
