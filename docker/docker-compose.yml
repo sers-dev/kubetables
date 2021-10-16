@@ -1,0 +1,16 @@
+version: '3.3'
+services:
+  kubetables:
+    image: "sers-dev/kubetables:latest"
+    build:
+      context: "../"
+      dockerfile: "./docker/Dockerfile"
+    volumes:
+      - "${KUBECONFIGPATH}:/root/.kube/"
+    command:
+      - "-c"
+      - "/root/.kube/config"
+    cap_add:
+      - "NET_ADMIN"
+      - "NET_RAW"
+    network_mode: "host"

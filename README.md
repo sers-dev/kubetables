@@ -10,6 +10,11 @@ and reacts to events like add, modify or delete and manages IPFilter rules accor
 Uses/requires iptables on host machines as of the current state.
 Uses Kubernetes Custom Resource via etcd as datastore of rule units.
 
+## Local docker setup
+* Copy `./docker/.env.tpl` to `./docker/.env` and change values according to your setup
+* Build image `docker-compose -f docker/docker-compose.yml build kubetables`
+* Run `docker-compose -f docker/docker-compose.yml up -d kubetables`
+
 ## Plans for the future
 * An additional tool to automatically create Ktban Custom Resources by for example evaluating fail2ban output 
 will be released here as well.
