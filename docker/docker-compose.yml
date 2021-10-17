@@ -5,6 +5,7 @@ services:
     build:
       context: "../"
       dockerfile: "./docker/Dockerfile"
+    container_name: kubetables
     volumes:
       - "${KUBECONFIGPATH}:/root/.kube/"
     command:
@@ -12,5 +13,4 @@ services:
       - "/root/.kube/config"
     cap_add:
       - "NET_ADMIN"
-      - "NET_RAW"
     network_mode: "host"
