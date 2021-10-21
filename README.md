@@ -25,11 +25,24 @@ Uses Kubernetes Custom Resource via etcd as datastore of rule units.
 ## Deployment
 ### Kubernetes
 The file `kubernetes/daemonset.yaml` includes all resources necessary for the application to work
-as well as the daemonset itself, which are Namespace, ServiceAccount, Role, Rolebinding.
+as well as the Daemonset itself, which are Namespace, ServiceAccount, Role, Rolebinding.
 With one apply the application should be up and running without errors:
 `kubectl apply -f kubernetes/daemonset.yaml`
 In `kubernetes/crd/` is the Custom Resource Definition for the newly created ktban-Resource. 
 There is not only the definition but an example, that can be applied for testing purposes.
+
+
+### Terraform
+The folder `kubernetes/terraform` consists of three files:
+* `main.tf`: "Entrypoint" of terraform with provider declaration
+* `variables.tf`: Contains some variables that are being used over and over but also stores the image name and version centralised
+* `daemonset.tf`: Contains all necessary kubernetes resources, basically `kubernetes/daemonset.yaml`, but in terraform
+You will most likely need to change the provider settings for your kubernetes configuration.
+This deployment method obviously needs Terraform installed on the machine the commands are being executed on 
+  (note: tfenv is great for managing Terraform versions).
+To create all resources via Terraform enter said directory and enter the following:
+  * `terraform init` Use only in before first execution
+  * `terraform apply`
 
 ## Plans for the future
 * An additional tool to automatically create Ktban Custom Resources by for example evaluating fail2ban output 
@@ -37,11 +50,13 @@ will be released here as well.
 * Aims to support nftables as packet filtering tool and postgres as datastore in the future.
 
 ## Troubleshooting
-* Problem: Docker container don't start, you see these lines in container logs:
-```
-kubetables    | panic: running [/sbin/ip6tables -t filter -S KUBETABLES 1 --wait]: exit status 3: modprobe: can't change directory to '/lib/modules': No such file or directory
-kubetables    | ip6tables v1.8.7 (legacy): can't initialize ip6tables table `filter': Table does not exist (do you need to insmod?)
-```
-Solution: Execute on host: `sudo modprobe ip6table_filter`
-Ref: https://ilhicas.com/2018/04/08/Fixing-do-you-need-insmod.html
-Info: Will need to investigate this problems origin further and prevent it from happening
+* **Problem**: Docker container don't start, you see these lines in container logs:
+    ```
+    kubetables    | panic: running [/sbin/ip6tables -t filter -S KUBETABLES 1 --wait]: exit status 3: modprobe: can't change directory to '/lib/modules': No such file or directory
+    kubetables    | ip6tables v1.8.7 (legacy): can't initialize ip6tables table `filter': Table does not exist (do you need to insmod?)
+    ```
+    **Solution**: Execute on host: `sudo modprobe ip6table_filter`
+
+    **Ref**: https://ilhicas.com/2018/04/08/Fixing-do-you-need-insmod.html
+
+    **Info**: Will need to investigate this problems origin further and prevent it from happening
