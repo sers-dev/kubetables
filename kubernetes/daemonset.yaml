@@ -19,7 +19,7 @@ metadata:
 rules:
   - apiGroups: ["k8s.sers.dev"]
     resources: ["ktbans"]
-    verbs: ["get", "watch", "list"]
+    verbs: ["get", "watch", "list", "delete"]
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -60,7 +60,7 @@ spec:
         operator: Exists
         effect: NoSchedule
       containers:
-      - image: ghcr.io/sers-dev/kubetables:master
+      - image: "ghcr.io/sers-dev/kubetables:master"
         name: kubetables
         securityContext:
           capabilities:
