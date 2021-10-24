@@ -1,20 +1,24 @@
 package main
 
 import (
-    "github.com/sers-dev/kubetables/internal/databackend/kubernetes"
+    "fmt"
+    "github.com/sers-dev/kubetables/internal/databackend"
     "github.com/sers-dev/kubetables/internal/databackend/types"
     "github.com/sers-dev/kubetables/internal/packetfilter"
+    "os"
+    "os/signal"
+    "syscall"
 )
 
 //https://www.martin-helmich.de/en/blog/kubernetes-crd-client.html
 func main() {
-    kubeHandler, err := kubernetes.Initialize()
+    dataBackendHandler, err := databackend.CreateDataBackend()
     if err != nil {
         panic(err.Error())
     }
 
     packetFilter := packetfilter.CreatePacketFilter()
-    ktbans, err := kubeHandler.List()
+    ktbans, err := dataBackendHandler.List()
     if err != nil {
         panic(err.Error())
     }
@@ -24,9 +28,17 @@ func main() {
         //LOG ERROR
     }
     ch := make(chan types.Event)
-    go kubeHandler.Watch(ch)
+    sigs := make(chan os.Signal, 1)
+    signalsToTerminate := []os.Signal{ syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL }
+
+    signal.Notify(sigs, signalsToTerminate...)
+    go dataBackendHandler.Watch(ch, sigs)
 
     for event := range ch {
+        if event.Abort {
+            fmt.Println("Processed terminating signal / watcher encountered error, aborting")
+            break
+        }
         switch event.Type {
         case types.Added:
             err := packetFilter.AppendRule(event.Object)
@@ -41,8 +53,5 @@ func main() {
         case types.Modified:
             // TODO
         }
-    }
-    ch <- types.Event {
-        Abort: true,
     }
 }

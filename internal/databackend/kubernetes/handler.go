@@ -8,6 +8,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/scheme"
+	"os"
 )
 
 type Handler struct {
@@ -37,10 +38,10 @@ func (h *Handler) List() (types.Ktbans, error) {
 		panic(err.Error())
 	}
 
-	return h.ConvertKubernetesList(*ktbanListKube), nil
+	return h.convertKubernetesList(*ktbanListKube), nil
 }
 
-func (h *Handler) Watch(ch chan types.Event) {
+func (h *Handler) Watch(ch chan types.Event, sigs chan os.Signal) {
 	listOptions := v1.ListOptions{}
 	watcher, err := h.client.Ktbans("ktban").Watch(listOptions)
 	if err != nil {
@@ -48,28 +49,37 @@ func (h *Handler) Watch(ch chan types.Event) {
 	}
 
 	eventsToActOn := []watch.EventType{ watch.Added, watch.Modified, watch.Deleted }
-	for event := range watcher.ResultChan() {
-		for _, entry := range eventsToActOn {
-			if entry == event.Type {
-				abstractEvent := h.convertEventTypes(event.Type)
-				kubernetesKtbanObj := event.Object.(*v1alpha1types.Ktban)
-				abstractObj := h.ConvertKtbanType(*kubernetesKtbanObj)
-				ch <- types.Event{
-					Type: abstractEvent,
-					Object: abstractObj,
-					Abort: false,
+	resultChan :=  watcher.ResultChan()
+	for {
+		select {
+			case kubernetesEvent := <-resultChan:
+				for _, eventToActOn := range eventsToActOn {
+					if eventToActOn == kubernetesEvent.Type {
+						abstractEvent := h.convertEventTypes(kubernetesEvent.Type)
+						kubernetesKtbanObj := kubernetesEvent.Object.(*v1alpha1types.Ktban)
+						abstractObj := h.convertKtbanType(*kubernetesKtbanObj)
+						ch <- types.Event{
+							Type:   abstractEvent,
+							Object: abstractObj,
+							Abort:  false,
+						}
+						continue
+					}
 				}
-				continue
-			}
-		}
-		if event.Type == watch.Error {
-			//TODO
+				if kubernetesEvent.Type == watch.Error {
+					watcher.Stop()
+					ch <- types.Event{ Abort: true }
+					return
+				}
+			case <-sigs:
+				watcher.Stop()
+				ch <- types.Event{ Abort: true }
+				return
 		}
 	}
-	watcher.Stop()
 }
 
-func (h *Handler) ConvertKubernetesList(kubeList v1alpha1types.KtbanList) types.Ktbans {
+func (h *Handler) convertKubernetesList(kubeList v1alpha1types.KtbanList) types.Ktbans {
 	var ktbans types.Ktbans
 	itemCount := len(kubeList.Items)
 	if itemCount < 1 {
@@ -80,13 +90,13 @@ func (h *Handler) ConvertKubernetesList(kubeList v1alpha1types.KtbanList) types.
 	ktbans.Items = make([]types.Ktban, itemCount)
 
 	for i := range kubeList.Items {
-		ktbans.Items[i] = h.ConvertKtbanType(kubeList.Items[i])
+		ktbans.Items[i] = h.convertKtbanType(kubeList.Items[i])
 	}
 
 	return ktbans
 }
 
-func (h *Handler) ConvertKtbanType(object v1alpha1types.Ktban) types.Ktban {
+func (h *Handler) convertKtbanType(object v1alpha1types.Ktban) types.Ktban {
 	ktban := types.Ktban{
 		Ip:       object.Spec.Ip,
 		PortFrom: object.Spec.PortFrom,
