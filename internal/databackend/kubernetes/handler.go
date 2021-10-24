@@ -40,13 +40,33 @@ func (h *Handler) List() (types.Ktbans, error) {
 	return h.ConvertKubernetesList(*ktbanListKube), nil
 }
 
-func (h *Handler) Watch() watch.Interface {
+func (h *Handler) Watch(ch chan types.Event) {
 	listOptions := v1.ListOptions{}
 	watcher, err := h.client.Ktbans("ktban").Watch(listOptions)
 	if err != nil {
 		panic(err.Error())
 	}
-	return watcher
+
+	eventsToActOn := []watch.EventType{ watch.Added, watch.Modified, watch.Deleted }
+	for event := range watcher.ResultChan() {
+		for _, entry := range eventsToActOn {
+			if entry == event.Type {
+				abstractEvent := h.convertEventTypes(event.Type)
+				kubernetesKtbanObj := event.Object.(*v1alpha1types.Ktban)
+				abstractObj := h.ConvertKtbanType(*kubernetesKtbanObj)
+				ch <- types.Event{
+					Type: abstractEvent,
+					Object: abstractObj,
+					Abort: false,
+				}
+				continue
+			}
+		}
+		if event.Type == watch.Error {
+			//TODO
+		}
+	}
+	watcher.Stop()
 }
 
 func (h *Handler) ConvertKubernetesList(kubeList v1alpha1types.KtbanList) types.Ktbans {
@@ -76,4 +96,17 @@ func (h *Handler) ConvertKtbanType(object v1alpha1types.Ktban) types.Ktban {
 		Direction: object.Spec.Direction,
 	}
 	return ktban
+}
+
+func (h *Handler) convertEventTypes(kubernetesEvent watch.EventType) types.WatchEvent {
+	var abstractEvent types.WatchEvent
+	switch kubernetesEvent {
+	case watch.Added:
+		abstractEvent = types.Added
+	case watch.Modified:
+		abstractEvent = types.Modified
+	case watch.Deleted:
+		abstractEvent = types.Deleted
+	}
+	return abstractEvent
 }
